@@ -244,9 +244,9 @@ def get_data(file):
     num_values = switch_data_format(values)
     return num_values
 
-# 该函数将某一季度的 pdfs 提取为一个 excel
-def run(base_dir):
-    wb = load_workbook('models1.xlsx')      
+
+def run(root_dir, base_dir):
+    wb = load_workbook('models1.xlsx')
     sheet = wb.active
     row = 3
     for file in Path(base_dir).rglob('*.pdf'):  # 做了一下尝试修改!!!原来为base_dir
