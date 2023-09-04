@@ -8,8 +8,8 @@ Created on Fri May 19 21:37:15 2023
 from pathlib import Path
 import shutil
 
-
-
+# 这个文件没被其他文件调用过，看起来没什么用，像一个测试用的文件
+# 把所有root_dir中的xlsx文件 copy 到save_dir中
 def main(root_dir,save_dir):
     for file in Path(root_dir).rglob('*.xlsx'):
         savepath = Path(save_dir).joinpath(file.name)

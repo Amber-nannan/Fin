@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 –*-
 
-import Fin_rp.pdf_to_txt as pdf_to_txt
-import Fin_rp.pdf_to_excel as pdf_to_excel
-import Fin_rp.reits_spider as reits_spider
-import Fin_rp.sse_spdier as sse_spdier
+import pdf_to_txt
+import pdf_to_excel
+import reits_spider
+import sse_spdier
 # import C_REITs.Fin_rp.copy_xlsx as copy_xlsx
 
 
@@ -13,18 +13,19 @@ import shutil
 import os
 import re
 
-
+# 注意和copy_xlsx.py中的main函数区分
+# 把root_dir中不含model的.xlsx文件copy到save_dir中
 def copy_xlsx(root_dir, save_dir):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-        print('创建文件夹 - %s' % save_dir)
+        print(f'创建文件夹 - {save_dir}')
 
     for file in Path(root_dir).rglob('*.xlsx'):
         savepath = Path(save_dir).joinpath(file.name)
         if not bool(re.search('models', file.name)):
             # if savepath.exists():
             #     continue
-            shutil.copy(file, save_dir)
+            shutil.copy(file, savepath)
             print(savepath, '保存成功')
 
 
@@ -45,15 +46,14 @@ def read_creits_pdf_data(root_dir, update):
 
 
 def downloada_and_read_creits_pdf_data(download,update):
-    root_dir = 'Fin_rp/Qreport_PDF'
-    save_dir = 'Fin_rp/Quarterly_report'
+    root_dir = 'Qreport_PDF'
+    save_dir = 'Quarterly_report'
     
     if download ==True:
         download_creits_pdf(root_dir)
-    shutil.copy('Fin_rp/models1.xlsx', root_dir)
     read_creits_pdf_data(root_dir, update)
     # print('目前仅在文档中更新了最新的excel，仍然需要检查数字')
-    copy_xlsx(root_dir, save_dir)
+    copy_xlsx(root_dir, save_dir)   # 把诸如2023Q1.xlsx复制到Quarterly_report文件夹中
 
     print('=' * 50)
     print('PDF下载及提取至文件夹已经全部完成')
