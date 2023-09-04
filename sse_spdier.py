@@ -4,10 +4,9 @@ import re
 import time
 from pathlib import Path
 import requests
-
+import random
 
 # 上海证券交易所pdf下载
-
 
 headers = {
     'Accept': '*/*',
@@ -22,7 +21,6 @@ headers = {
 han_item = {'一':1,'二':2,'三':3,'四':4,
             '二0二四':2024,'二0二三':2023,'二0二二':2022,'二0二一':2021}
 
-
 def get_pdf(filepath,pdf_url):
     res = requests.get(pdf_url,headers)
     with open(filepath,'wb') as f:
@@ -30,12 +28,11 @@ def get_pdf(filepath,pdf_url):
     print(filepath,'保存成功。')
 
 
-
-
-def get_page(page,startDate,endDate,root_dir):
-
+# 与深交所不同，上交所没有关键词搜索，所以需要在结果里遍历，判断是否是年报或季报
+def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
+    rand_=random.randint(10**5, 10**6)
     params = {
-        'jsonCallBack': 'jsonpCallback79355',
+        'jsonCallBack': f'jsonpCallback{rand_}',
         'sqlId': 'REITS_BULLETIN',
         'isPagination': 'true',
         'fundCode': '',
@@ -43,52 +40,54 @@ def get_page(page,startDate,endDate,root_dir):
         'endDate': endDate,
         'pageHelp.pageSize': '1000',
         'pageHelp.cacheSize': '1',
-        'pageHelp.pageNo': page,
-        'pageHelp.beginPage': page,
+        'pageHelp.pageNo': '1',
+        'pageHelp.beginPage': '1',
         'pageHelp.endPage': '5',
         '_': int(time.time()*1000),
     }
-
-    response = requests.get('http://query.sse.com.cn/commonSoaQuery.do', params=params, headers=headers, verify=False)
+    url='http://query.sse.com.cn/commonSoaQuery.do'
+    response = requests.get(url=url, params=params, headers=headers, verify=False)
     data = re.findall('jsonpCallback\d+\((.*?)\)$',response.text)[0]
     js_data = json.loads(data)
-    total_page = js_data['pageHelp']['pageCount']
-    for d in js_data['result']:
-        title = d['title']
-        if re.search('年第\w季度报告$',title) or re.search('年度第\w季度报告$',title) :
-            if re.search('年第\w季度报告$',title):
-                year,jd = re.findall('(\w{4})年第(\w{1})季度报告$',title)[0]
-            if re.search('年度第\w季度报告$',title):
-                year,jd = re.findall('(\w{4})年度第(\w{1})季度报告$',title)[0]
-            if jd in han_item:
-                jd = han_item.get(jd)
-            if year in han_item:
-                year = han_item.get(year)
+    pageCount = js_data['pageHelp']['pageCount']//25+1
+    for pageNo in range(pageCount):
+        params['pageHelp.pageNo'] = pageNo + 1
+        response = requests.get(url=url, params=params, headers=headers, verify=False)
+        data = re.findall('jsonpCallback\d+\((.*?)\)$',response.text)[0]
+        js_data = json.loads(data)
+        dataList = js_data['pageHelp']['data']
+        for data in dataList:
+            title = data['title']
+            code = data['securityCode']
+            pdf_url = "http://www.sse.com.cn" +data['url']
+            if re.search('年度?第\w季度报告$',title) :
+                year,jd = re.findall('(\w{4})年度?第(\w{1})季度报告$',title)[0]
+                jd = han_item[jd] if jd in han_item else jd
+                year = han_item[year] if year in han_item else year        
+                base_dir = Path(quarterly_root_dir).joinpath(f"{year}Q{jd}").joinpath('Q_report')
+                filename = f"{code}_{year}Q{jd}.pdf"
+                filepath = base_dir.joinpath(filename)
+                if not base_dir.exists():
+                    base_dir.mkdir(parents=True,exist_ok=True)
+                if not filepath.exists():
+                    get_pdf(str(filepath),pdf_url)
+                else:
+                    print(filepath,'已存在。')
 
-            code = d['securityCode']
-            pdf_url = "http://www.sse.com.cn" +d['url']
-            base_dir = Path(root_dir).joinpath(f"{year}Q{jd}").joinpath('Q_report')
-            if not base_dir.exists():
-                base_dir.mkdir(parents=True,exist_ok=True)
+            elif re.search('年度报告$',title):
+                year =re.findall('(\d{4})年年度报告$',title)[0]  # 测试正则表达式
+                base_dir = Path(annual_root_dir).joinpath(f"{year}A").joinpath('A_report')
+                filename = f"{code}_{year}A.pdf"
+                filepath = base_dir.joinpath(filename)
+                if not base_dir.exists():
+                    base_dir.mkdir(parents=True,exist_ok=True)
+                if not filepath.exists():
+                    get_pdf(str(filepath),pdf_url)
+                else:
+                    print(filepath,'已存在。')
 
-            filename = f"{code}_{year}Q{jd}.pdf"
-            filepath = base_dir.joinpath(filename)
-            if not filepath.exists():
-                get_pdf(str(filepath),pdf_url)
-            else:
-                print(filepath,'已存在。')
-    return total_page
-
-
-def main(startDate,endDate,root_dir):
-    page = 1
-    while 1:
-        print('开始爬取页数>>>>>',page)
-        total_page = get_page(page,startDate,endDate,root_dir)
-        page +=1
-        time.sleep(3)
-        if page > total_page:
-            break
+def main(startDate,endDate):
+    get_page(startDate,endDate,'Qreport_PDF','Areport_PDF')
 
 
 # 上海证券交易所pdf下载
