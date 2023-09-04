@@ -8,9 +8,11 @@ import re
 def get_tables(file):
     pdf = pdfplumber.open(str(file))
     tables = []
+    # content=''
     for page in pdf.pages:
+        # text = page.extract_text()
+        # content += text
         table = page.extract_tables()
-
         if not table:
             continue
         for row in table:
@@ -18,9 +20,18 @@ def get_tables(file):
     pdf.close()
     tables_new = [
         [str(cell).replace('\n', '') for cell in row] for row in tables]
-
+    
+    # lines = content.splitlines()
+    # for line in lines:
+    #     if '8.1' in line and '管理人' in line and '基金份额变动情况' in line:
+    #         a = lines.index(line)
+    #     if '8.2' in line and '管理人' in line and '交易明细' in line:
+    #         b = lines.index(line)
+    #         break
+    # if b > a:
+    #     fuck = lines[a+1:b]
+    #     content = ''.join(fuck)
     return tables_new
-
 
 def get_code_name(file: Path):
     if isinstance(file, str):
@@ -31,7 +42,6 @@ def get_code_name(file: Path):
     elif name.startswith('5'):
         name = name + '.SH'
     return name
-
 
 def switch_data_format(values):
     float_values = []
@@ -49,11 +59,7 @@ def switch_data_format(values):
                 float_values.append(v)
         else:
             float_values.append('')
-
     return float_values
-
-
-
 
 def check_string_contains(my_string, substrings_to_check):
     # my_string = "本期收入为其他收入"
@@ -61,14 +67,12 @@ def check_string_contains(my_string, substrings_to_check):
     pattern = '|'.join(substrings_to_check)
     return bool(re.search(pattern, my_string))
 
-
 def get_data(file):
     tables = get_tables(file)
-    A = B = C = D = E = F = G = H = I = J = K = L = M = N = O = P = Q = R = S = T = U = V = W = X = ''
+    A = B = C = D = E = F = G = H = I = J = K = L = M = N = O = P = Q = R = S = T = U = V = W = X = Y = Z =''
     A = get_code_name(file)
     G_, H_ = [], []
     for n, row in enumerate(tables):
-
         if row[0] == "基金简称":
             B = row[-1]
         if '主要财务指标' in row:
@@ -77,14 +81,17 @@ def get_data(file):
                     for r in row2:
                         if isinstance(r, str) and ',' in r:
                             D = r
+                            continue
                 if isinstance(row2[0], str) and '本期净利润' in row2[0]:
                     for r in row2:
                         if isinstance(r, str) and ',' in r:
                             E = r
+                            continue
                 if isinstance(row2[0], str) and '本期经营活动' in row2[0].replace('\n', ''):
                     for r in row2:
                         if isinstance(r, str) and ',' in r:
                             F = r
+                            continue
         # 最原始的代码
         # for rr in row:
         #     if isinstance(rr,str) and ('其他收入' in rr.replace('\n','') or '租金收入' in rr.replace('\n','')):
@@ -138,7 +145,6 @@ def get_data(file):
                         if ',' in r:
                             try:
                                 J = float(r.replace(',', ''))
-
                             except:
                                 pass
                         try:
@@ -159,6 +165,7 @@ def get_data(file):
             for r in tables[n + 3]:
                 if r and ',' in r:
                     P = r
+
         if row[0] == "调增项":
             Q = 0
             for row3 in tables[n:]:
@@ -191,26 +198,30 @@ def get_data(file):
                         R += q
                         continue
 
+        # 调整原有的wind表格：
+        # if '毛利润金额' in row:
+        #     T = row[-2]
+        #     U = tables[n+1][-2]
+        #     V = tables[n+2][-2]
+        # for r in row:
+        #     if isinstance(r,str) and '息税折旧前净利率' in r.replace('\n',''):
+        #         W = row[-2]
         for rr in row:
-            check_list = ['期初基金份额']
+            check_list = ['报告期期初基金份额总额']
             if check_string_contains(rr, check_list):
                 S = row[-1]
                 if check_string_contains(rr, ['份']):
                     S = S.replace('份', '')
-
-
         for rr in row:
-            check_list = ['期末基金份额']
+            check_list = ['报告期末基金份额总额']
             if check_string_contains(rr, check_list):
                 T = row[-1]
                 if check_string_contains(rr, ['份']):
                     T = T.replace('份', '')
-
-
         for rr in row:
             check_list = ['期初管理人持有的本基金份额']
             if check_string_contains(rr, check_list):
-                U = row[-1]
+                T = row[-1]
         for rr in row:
             check_list = ['期初管理人持有的本基金份额']
             if check_string_contains(rr, check_list):
@@ -220,21 +231,18 @@ def get_data(file):
             check_list2 = ['%']
             if check_string_contains(rr, check_list1) and check_string_contains(rr, check_list2):
                 W = row[-1]
-        for rr in row:
-            check_list1 = ['银行存款和结算备付金']
-            if check_string_contains(rr, check_list1):
-                row = [x for x in row if x not in ['None','']]
-                X = row[-1]
-
+        
+        if '银行存款和结算备付金合计' in row:
+            for r in row:
+                if isinstance(r, str) and ',' in r:
+                    Z = r
+                    
     G = sum(G_)
     H = sum(H_)
-
     # 去掉逗号与换行
-    values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X]
+    values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z]
     num_values = switch_data_format(values)
-
     return num_values
-
 
 def run(root_dir, base_dir):
     wb = load_workbook(root_dir + '/models1.xlsx')
