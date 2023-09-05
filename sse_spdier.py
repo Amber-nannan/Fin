@@ -17,9 +17,10 @@ headers = {
     'Referer': 'http://www.sse.com.cn/',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
 }
-
-han_item = {'一':1,'二':2,'三':3,'四':4,
-            '二0二四':2024,'二0二三':2023,'二0二二':2022,'二0二一':2021}
+han_item = {'〇': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+            '十一': 11, '十二': 12, '零': 0,
+            '二0二四': 2024, '二0二三': 2023, '二0二二': 2022, '二0二一': 2021,
+            '二〇二四': 2024, '二〇二三': 2023, '二〇二二': 2022, '二〇二一': 2021}
 
 def get_pdf(filepath,pdf_url):
     res = requests.get(pdf_url,headers)
@@ -51,6 +52,7 @@ def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
     js_data = json.loads(data)
     pageCount = js_data['pageHelp']['pageCount']//25+1
     for pageNo in range(pageCount):
+        print(f'开始爬取上交所季报和年报页数>>>>>{pageNo+1}')
         params['pageHelp.pageNo'] = pageNo + 1
         response = requests.get(url=url, params=params, headers=headers, verify=False)
         data = re.findall('jsonpCallback\d+\((.*?)\)$',response.text)[0]
@@ -61,9 +63,9 @@ def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
             code = data['securityCode']
             pdf_url = "http://www.sse.com.cn" +data['url']
             if re.search('年度?第\w季度报告$',title) :
-                year,jd = re.findall('(\w{4})年度?第(\w{1})季度报告$',title)[0]
+                year,jd = re.findall('(\w{4})年度?第?(\w{1})季度报告$',title)[0]
                 jd = han_item[jd] if jd in han_item else jd
-                year = han_item[year] if year in han_item else year        
+                year = han_item[year] if year in han_item else year
                 base_dir = Path(quarterly_root_dir).joinpath(f"{year}Q{jd}").joinpath('Q_report')
                 filename = f"{code}_{year}Q{jd}.pdf"
                 filepath = base_dir.joinpath(filename)
@@ -75,7 +77,8 @@ def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
                     print(filepath,'已存在。')
 
             elif re.search('年度报告$',title):
-                year =re.findall('(\d{4})年年度报告$',title)[0]  # 测试正则表达式
+                year =re.findall('(二0[\u4e00-\u9fa5]{2}|\d{4}|二〇[\u4e00-\u9fa5]{2})年度?', title)[0]
+                year = han_item[year] if year in han_item else year
                 base_dir = Path(annual_root_dir).joinpath(f"{year}A").joinpath('A_report')
                 filename = f"{code}_{year}A.pdf"
                 filepath = base_dir.joinpath(filename)
@@ -89,7 +92,7 @@ def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
 def main(startDate,endDate):
     get_page(startDate,endDate,'Qreport_PDF','Areport_PDF')
 
-
+main('2021-01-01','2023-09-05')
 # 上海证券交易所pdf下载
 
 # if __name__ == '__main__':

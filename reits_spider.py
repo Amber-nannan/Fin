@@ -21,8 +21,10 @@ headers = {
 }
 
 
-han_item = {'一':1,'二':2,'三':3,'四':4,
-            '二0二四':2024,'二0二三':2023,'二0二二':2022,'二0二一':2021}
+han_item = {'〇': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+            '十一': 11, '十二': 12, '零': 0,
+            '二0二四': 2024, '二0二三': 2023, '二0二二': 2022, '二0二一': 2021,
+            '二〇二四': 2024, '二〇二三': 2023, '二〇二二': 2022, '二〇二一': 2021}
 
 def get_pdf(filepath,pdf_url):
     res = requests.get(pdf_url,headers,verify=False,)
@@ -42,14 +44,13 @@ def get_page(startDate,endDate,report_type,root_dir):
         'seDate': [startDate,endDate],
         'searchKey': [searchKey],
         'channelCode': ['reits-xxpl'],
-        'bigCategoryId': ['quarterreport'],
-        'pageSize': 100,
+        'pageSize': 50,
         'pageNum': '1',
     }
     response = requests.post(url=url,params=params,headers=headers,json=json_data,verify=False)
     pageCount = response.json()['announceCount']//50+1
     for pageNo in range(pageCount):
-        print(f'开始爬取{searchKey}页数>>>>>{pageNo+1}')
+        print(f'开始爬取深交所{searchKey}页数>>>>>{pageNo+1}')
         json_data['pageNum'] = str(pageNo + 1)
         response = requests.post(url, headers=headers, params=params, json=json_data, verify=False)
         dataList = response.json()['data']    
@@ -60,7 +61,7 @@ def get_page(startDate,endDate,report_type,root_dir):
             pdf_url ="http://reits.szse.cn/api/disc/info/download?id={}".format(data['id'])
             if  report_type=='quarterly':
                 if re.search('年第?\w季度报告$',title):
-                    year,jd = re.findall('(\w{4})年第?(\w{1})季度报告$',title)[0]
+                    year,jd = re.findall('(\w{4})年度?第?(\w{1})季度报告$',title)[0]
                     jd = han_item[jd] if jd in han_item else jd
                     year = han_item[year] if year in han_item else year
                     base_dir = Path(root_dir).joinpath(f"{year}Q{jd}").joinpath('Q_report')
@@ -75,7 +76,8 @@ def get_page(startDate,endDate,report_type,root_dir):
 
             if  report_type=='annual':       
                 if re.search('年度报告$',title):
-                    year =re.findall('(\d{4})年年度报告$',title)[0]  # 正则表达式这样写目前是够用的，有空再改
+                    year =re.findall('(二0[\u4e00-\u9fa5]{2}|\d{4}|二〇[\u4e00-\u9fa5]{2})年度?', title)[0]
+                    year = han_item[year] if year in han_item else year
                     base_dir = Path(root_dir).joinpath(f"{year}A").joinpath('A_report')
                     filename = f"{code}_{year}A.pdf"
                     filepath = base_dir.joinpath(filename)
@@ -90,6 +92,7 @@ def main(startDate,endDate):
     get_page(startDate,endDate,'quarterly','Qreport_PDF')
     get_page(startDate,endDate,'annual','Areport_PDF')
 
+main('2021-01-01','2023-09-05')
 
 # 深圳证券交易所pdf下载
 
