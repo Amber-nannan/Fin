@@ -140,7 +140,7 @@ def get_data(file):
                             K = float(r)
                         except Exception:
                             pass
-                if '本年累计' in row2:
+                if '本年累计' in row2:  # 这里可能有缺陷，有的J和L可能是0.00这样的数
                     for r in row2:
                         if ',' in r:
                             try:
@@ -244,8 +244,7 @@ def get_data(file):
     num_values = switch_data_format(values)
     return num_values
 
-
-def run(root_dir, base_dir):
+def run(base_dir):
     wb = load_workbook('models1.xlsx')
     sheet = wb.active
     row = 3
@@ -276,9 +275,5 @@ def main(root_dir, update):
                 print(name, '保存成功。')
 
 # if __name__ == '__main__':
-#     root_dir ='PDF'
-#     main(root_dir)  
-# file = 'Fin_rp/Qreport_PDF/2022Q4/Q_report/508027_2022Q4.pdf'
-# t = get_tables(file)
-# for i in t:
-#     print(i)
+#     main('Areport_PDF','')  
+
