@@ -118,4 +118,6 @@ def main(root_dir):
 if __name__ == '__main__':
     # root_dir = 'PDF'
     # main(root_dir)
-    main(r'F:\REITs\Qreport_PDF')
+    main(r'.\Qreport_PDF')
+    
+    

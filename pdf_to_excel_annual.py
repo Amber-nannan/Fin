@@ -18,7 +18,7 @@ def get_tables(file):
             start_page=int(re.findall('\.{2,}\s?(\d+)',text)[0])
         if '5.2' in text  and '债券投资组合' in text:
             end_page=int(re.findall('(\d{2})',text)[0])
-        if ('13.4' in text) or ('基金份额变动情况' in text):    # 这两个基本在同一页，可能都有/没有，或可能有一个
+        if ('13.1' in text) or ('户数及持有人结构' in text):    # 这两个基本在同一页，可能都有/没有，或可能有一个
             try:
                 page_=int(re.findall('\.{2,}\s?(\d+)',text)[0])
                 break
@@ -50,7 +50,7 @@ def get_tables(file):
     # 提取基金份额变动情况附近页，即13.4-§14
     tables_2= []
     if page_:
-        for page in pdf.pages[page_-2:page_+1]:
+        for page in pdf.pages[page_-2:]:
             table = page.extract_tables()
             if not table:
                 continue
@@ -98,14 +98,15 @@ def check_string_contains(my_string, substrings_to_check):
 
 def get_data(file):
     tables,mgmt_fee_text,tables_2 = get_tables(file)
-    A = B = C = D = E = F = G = H = I = J = K = L = M = N = O = P = Q = R = S = T = U = V = W = X = Y = Z = AA = AB = AC =''
+    A = B = C = D = E = F = G = H = I = J = K = L = M = N = O = P =\
+    Q = R = S = T = U = V = W = X = Y = Z = AA = AB = AC = AD = AE = ''
     A = get_code_name(file) 
     J_, K_ = [], []
     for n, row in enumerate(tables):
         if row[0] == "基金简称":
             B = row[1]    
         if '期间数据和指标' in row:  
-            for row2 in tables[n:n + 5]:
+            for row2 in tables[n:n + 7]:
                 if '本期收入' in row2[0]:
                     for r in row2:
                         if ',' in r:
@@ -167,7 +168,8 @@ def get_data(file):
                                 break
 
         if '数据和指标' in row:
-            for row2 in tables[n:n+10]:
+            
+            for row2 in tables[n:n+12]:
                 if '期末基金份额净值' in row2[0]:
                     for r in row2:
                         if '.' in r:
@@ -183,20 +185,23 @@ def get_data(file):
             for row2 in tables[n:n + 3]: 
                 if '本期' in row2:
                     for r in row2:
-                        if ',' in r:
+                        if ',' in r and not re.search('[\u4e00-\u9fff]', r):
+                            # break
                             N = r
                             continue
-                        if '.' in r:
+                        if '.' in r and not re.search('[\u4e00-\u9fff]', r):
                             O = r
         if '实际分配金额' in row and '单位实际分配金额' in row:
             for row2 in tables[n:n + 3]:
                 if '本期' in row2:
                     for r in row2:
-                        if ',' in r:  # 这里可能有缺陷，有的P和L可能是0.00这样的数
+                        if ',' in r and '.' in r and not re.search('[\u4e00-\u9fff]', r):  # 这里可能有缺陷，有的P和L可能是0.00这样的数
                             P = r
                             continue
-                        if '.' in r:
+                        if '.' in r and not re.search('[\u4e00-\u9fff]', r):
                             Q = r
+                            if float(Q)==0:
+                                P='0.00'
     
         if '折旧和摊销' in row[0]:
             for r in row[1:]:
@@ -257,18 +262,22 @@ def get_data(file):
                     AC = AC.replace('份', '')
         if tables_2:
             for n, row in enumerate(tables_2):
+                if '机构投资者' in row and '个人投资者' in row:
+                    # break
+                    original_list = tables_2[n+1:n+10]
+                    for row2 in original_list:
+                        if '.' in str(row2) and not re.search('[\u4e00-\u9fff]', str(row2)):
+                            fil = [item for item in row2 if ',' in item or '.' in item]
+                            Y,Z,AA,AB = fil[0],fil[1],fil[2],fil[4]
+                
                 if '基金管理人所有从业人员持有本基金' in row:
-                    for row2 in tables_2[n:n + 2]:
-                        for r in row2:
-                            if ('.' in r) and ('%' not in r):
-                                Y = r
-                                continue
-                            if '%' in r:
-                                Z = r
-                if '基金合同生效日' in row[0] and '基金份额总额' in row[0]:
-                    AA=row[1]
-                if '期初基金份额总额' in row[0]:
-                    AB=row[1]
+                    fil = [item for item in row if '.' in item]
+                    AD = fil[0]
+                    AE = fil[1]
+                # if '基金合同生效日' in row[0] and '基金份额总额' in row[0]:
+                #     AA=row[1]
+                # if '期初基金份额总额' in row[0]:
+                #     AB=row[1]
                 if '期末基金份额总额' in row[0]:
                     AC=row[1]
 
@@ -281,12 +290,12 @@ def get_data(file):
     J = sum(J_)
     K = sum(K_)
     # # 去掉逗号与换行
-    values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB, AC]
+    values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB, AC, AD ,AE]
     num_values = switch_data_format(values)
     return num_values
 
 def run(base_dir):
-    wb = load_workbook('models2.xlsx')
+    wb = load_workbook('modelsA.xlsx')
     sheet = wb.active
     row = 3
     for file in Path(base_dir).rglob('*.pdf'): 
@@ -316,6 +325,6 @@ def main(root_dir, update):
                 print(name, '保存成功。')
 
 if __name__ == '__main__':
-    main('Areport_PDF','part')
+    main('Areport_PDF',1)
     # get_data(r'F:\REITs\to_intern_0903\Fin_rp\Areport_PDF\2022A\A_report\508056_2022A.pdf')
 

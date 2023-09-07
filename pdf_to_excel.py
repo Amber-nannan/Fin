@@ -245,7 +245,7 @@ def get_data(file):
     return num_values
 
 def run(base_dir):
-    wb = load_workbook('models1.xlsx')
+    wb = load_workbook('modelsQ.xlsx')
     sheet = wb.active
     row = 3
     for file in Path(base_dir).rglob('*.pdf'):  # 做了一下尝试修改!!!原来为base_dir
