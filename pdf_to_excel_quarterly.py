@@ -235,12 +235,12 @@ def get_data(file):
         if '银行存款和结算备付金合计' in row:
             for r in row:
                 if isinstance(r, str) and ',' in r:
-                    Z = r
+                    X = r
                     
     G = sum(G_)
     H = sum(H_)
     # 去掉逗号与换行
-    values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z]
+    values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X]
     num_values = switch_data_format(values)
     return num_values
 

@@ -36,7 +36,13 @@ def get_pdf(filepath,pdf_url):
 # report_type 请填写'quarterly' 或'annual'
 def get_page(startDate,endDate,report_type,root_dir):
     url = 'http://reits.szse.cn/api/disc/announcement/annList'
-    searchKey='季度报告' if report_type=='quarterly' else '年度报告'
+    
+    if report_type=='quarterly':
+        searchKey='季度报告' 
+    elif report_type=='annual':
+        searchKey='年度报告' 
+    else:
+        searchKey='中期报告'
     params = {
         'random': random.random(),
     }
@@ -87,12 +93,27 @@ def get_page(startDate,endDate,report_type,root_dir):
                         get_pdf(str(filepath),pdf_url)
                     else:
                         print(filepath,'已存在。')
+            if  report_type=='mid':       
+                if re.search('中期报告$',title):
+                    year =re.findall('(二0[\u4e00-\u9fa5]{2}|\d{4}|二〇[\u4e00-\u9fa5]{2})年度?', title)[0]
+                    year = han_item[year] if year in han_item else year
+                    base_dir = Path(root_dir).joinpath(f"{year}Mid").joinpath('Mid_report')
+                    filename = f"{code}_{year}Mid.pdf"
+                    filepath = base_dir.joinpath(filename)
+                    if not base_dir.exists():
+                        base_dir.mkdir(parents=True,exist_ok=True)
+                    if not filepath.exists():
+                        get_pdf(str(filepath),pdf_url)
+                    else:
+                        print(filepath,'已存在。')
 
 def main(startDate,endDate):
     get_page(startDate,endDate,'quarterly','Qreport_PDF')
     get_page(startDate,endDate,'annual','Areport_PDF')
+    get_page(startDate,endDate,'mid','Midreport_PDF')
 
-main('2021-01-01','2023-09-05')
+
+# main('2021-01-01','2023-09-05')
 
 # 深圳证券交易所pdf下载
 

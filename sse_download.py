@@ -30,7 +30,7 @@ def get_pdf(filepath,pdf_url):
 
 
 # 与深交所不同，上交所没有关键词搜索，所以需要在结果里遍历，判断是否是年报或季报
-def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
+def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir,mid_root_dir):
     rand_=random.randint(10**5, 10**6)
     params = {
         'jsonCallBack': f'jsonpCallback{rand_}',
@@ -88,11 +88,24 @@ def get_page(startDate,endDate,quarterly_root_dir,annual_root_dir):
                     get_pdf(str(filepath),pdf_url)
                 else:
                     print(filepath,'已存在。')
+            elif re.search('中期报告$',title):
+                year =re.findall('(二0[\u4e00-\u9fa5]{2}|\d{4}|二〇[\u4e00-\u9fa5]{2})年度?', title)[0]
+                year = han_item[year] if year in han_item else year
+                base_dir = Path(mid_root_dir).joinpath(f"{year}Mid").joinpath('Mid_report')
+                filename = f"{code}_{year}Mid.pdf"
+                filepath = base_dir.joinpath(filename)
+                if not base_dir.exists():
+                    base_dir.mkdir(parents=True,exist_ok=True)
+                if not filepath.exists():
+                    get_pdf(str(filepath),pdf_url)
+                else:
+                    print(filepath,'已存在。')
+
 
 def main(startDate,endDate):
-    get_page(startDate,endDate,'Qreport_PDF','Areport_PDF')
+    get_page(startDate,endDate,'Qreport_PDF','Areport_PDF','Midreport_PDF')
 
-main('2021-01-01','2023-09-05')
+# main('2021-01-01','2023-09-05')
 # 上海证券交易所pdf下载
 
 # if __name__ == '__main__':

@@ -6,9 +6,12 @@ import re
 
 # 根据目录缩小extract页码范围: §2--5.1、13.4-§14
 import pdfplumber
+
+
+
 def get_tables(file):
     pdf = pdfplumber.open(str(file))
-    toc_pages = pdf.pages[2:5]  # 这几页是目录页
+    toc_pages = pdf.pages[2:7]  # 这几页是目录页
     toc_page_lines=[]
     for toc_page in toc_pages:
         toc_page_lines += toc_page.extract_text_lines()
@@ -18,7 +21,7 @@ def get_tables(file):
             start_page=int(re.findall('\.{2,}\s?(\d+)',text)[0])
         if '5.2' in text  and '债券投资组合' in text:
             end_page=int(re.findall('(\d{2})',text)[0])
-        if ('13.1' in text) or ('户数及持有人结构' in text):    # 这两个基本在同一页，可能都有/没有，或可能有一个
+        if ('9.1' in text) or ('户数及持有人结构' in text):    # 这两个基本在同一页，可能都有/没有，或可能有一个
             try:
                 page_=int(re.findall('\.{2,}\s?(\d+)',text)[0])
                 break
@@ -50,7 +53,7 @@ def get_tables(file):
     # 提取基金份额变动情况附近页，即13.4-§14
     tables_2= []
     if page_:
-        for page in pdf.pages[page_-2:]:
+        for page in pdf.pages[page_-1:]:
             table = page.extract_tables()
             if not table:
                 continue
@@ -271,7 +274,6 @@ def get_data(file):
                             Y,Z,AA,AB = fil[0],fil[1],fil[2],fil[4]
                 
                 if '所有从业人员持有本基金' in str(row) and '基金管理' in str(row):
-                    break
                     fil = [item for item in row if '.' in item]
                     AD = fil[0]
                     AE = fil[1]
