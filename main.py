@@ -41,8 +41,6 @@ def read_creits_pdf_data(root_dir, update):
     pdf_to_excel_quarterly.main('Qreport_PDF', update)  # pdf提取到excel
     pdf_to_excel_annual.main('Areport_PDF', update)  # pdf提取到excel
     pdf_to_excel_mid.main('Midreport_PDF', update)  # pdf提取到excel
-
-    
     # pdf_to_txt.main(root_dir)  # pdf提取到txt
     # copy_xlsx(root_dir,save_dir)
 
@@ -57,12 +55,14 @@ def downloada_and_read_creits_pdf_data(download,update):
     # print('目前仅在文档中更新了最新的excel，仍然需要检查数字')
     copy_xlsx('Qreport_PDF', 'Quarterly_report')   # 把诸如2023Q1.xlsx复制到Quarterly_report文件夹中
     copy_xlsx('Areport_PDF', 'Annual_report')   # 把诸如2023Q1.xlsx复制到Quarterly_report文件夹中
+    copy_xlsx('Midreport_PDF', 'Midterm_report')   # 把诸如2023Q1.xlsx复制到Quarterly_report文件夹中
+
 
     print('=' * 50)
     print('PDF下载及提取至文件夹已经全部完成')
     print('=' * 50)
 
-
+downloada_and_read_creits_pdf_data(False,1)
 
 
 
