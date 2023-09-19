@@ -8,10 +8,13 @@ import re
 def get_tables(file):
     pdf = pdfplumber.open(str(file))
     tables = []
-    # content=''
+    content=''
     for page in pdf.pages:
-        # text = page.extract_text()
-        # content += text
+        content_area = (45, 60, 545, 780)
+        cropped_page = page.crop(content_area) # 裁剪页面，只提取指定区域的文本（防止管理费文本里出现页眉和页码）
+        text = cropped_page.extract_text()
+        content += text
+
         table = page.extract_tables()
         if not table:
             continue
@@ -21,16 +24,17 @@ def get_tables(file):
     tables_new = [
         [str(cell).replace('\n', '') for cell in row] for row in tables]
     
-    # lines = content.splitlines()
-    # for line in lines:
-    #     if '8.1' in line and '管理人' in line and '基金份额变动情况' in line:
-    #         a = lines.index(line)
-    #     if '8.2' in line and '管理人' in line and '交易明细' in line:
-    #         b = lines.index(line)
-    #         break
-    # if b > a:
-    #     fuck = lines[a+1:b]
-    #     content = ''.join(fuck)
+    lines = content.splitlines()
+    for line in lines:
+        if '6.2' in line and '基金费用' in line and '收取情况' in line:
+            a = lines.index(line)
+        if '6.3' in line and '管理人' in line:
+            b = lines.index(line)
+            break
+    if b > a:
+        content = ''.join(lines[a+1:b+1])
+        content = content.replace('§4 基础设施项目运营情况', '')
+
     return tables_new
 
 def get_code_name(file: Path):

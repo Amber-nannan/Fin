@@ -62,17 +62,15 @@ def get_cf2(s):
 
 # 外部机构计提管理费
 def get_mf3(s):
-    
-    mf3=re.search('外部管理机构计提管理费([\d\W]+)元',s)
+    mf3=re.search('(外部|运营)管理机构(?:计提)?管理费([\d\W]+)元',s)
     if mf3:
-        return mf3.group(1)
+        return mf3.group(2)
     elif re.search('外部管理机构的管理费.*?计提金额([\d\W]+)元',s):
         mf3=re.search('外部管理机构的管理费.*?计提金额([\d\W]+)元',s).group(1)
-
     elif re.search('运营(服务费用|管理费)为?([\d\W]+)元',s):
         mf3=re.search('运营(服务费用|管理费)为?([\d\W]+)元',s).group(2)
     elif re.search('报告期内发生应支付运营管理机构的管理费([\d\W]+)元',s):
-        mf3_variable=re.search('报告期内发生应支付运营管理机构的管理费([\d\W]+)元',s).group(1)
+        mf3=re.search('报告期内发生应支付运营管理机构的管理费([\d\W]+)元',s).group(1)
     else:
         mf3=''
     return mf3
@@ -98,7 +96,14 @@ def process_180202(s):
     mf2=get_mf2(s)
     cf1=get_cf1(s)
     cf2=get_cf2(s)
-    mf3_variable=re.findall('运营管理机构收取的浮动管理费([\d\W]+)元',s)[0]
+    try:
+        mf3_sum=get_mf3(s)
+    except:
+        pass
+    try:
+        mf3_variable=re.findall('(?:运营管理机构收取的)?浮动管理费([\d\W]+)元',s)[0]
+    except:
+        pass
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -116,9 +121,15 @@ def process_180401(s):
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
     mf12=re.findall('基金管理人与.*计划管理人计提管理费合计([\d\W]+)元',s)[0]
     cf1=get_cf1(s)
-    mf3_fixed=re.findall('外部管理机构.*固定管理费为([\d\W]+)元',s)[0]
-    mf3_variable=re.findall('外部管理机构.*浮动管理费为([\d\W]+)元',s)[0]
-    mf3_sum=re.findall('外部管理机构.*全年管理费([\d\W]+)元',s)[0]
+    mf3_fixed=re.findall('外部管理机构.*?固定管理费为?([\d\.,]+).*?元',s)[0]  ##（含税）元
+    try:
+        mf3_variable=re.findall('外部管理机构.*浮动管理费为([\d\W]+)元',s)[0]  #只有年报里有
+    except:
+        pass
+    try:
+        mf3_sum=re.findall('外部管理机构.*全年管理费([\d\W]+)元',s)[0]  #只有年报里有
+    except:
+        pass
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -127,9 +138,13 @@ def process_180501(s):
     mf1=get_mf1(s)
     mf2=get_mf2(s)
     cf1=get_cf1(s)
-    mf3_fixed = re.findall('运营管理机构的管理费.*固定管理费为([\d\W]+)元',s)[0]
-    mf3_variable=re.findall('运营管理机构的管理费.*浮动管理费为([\d\W]+)元',s)[0]
-    mf3_sum=re.findall('报告期内发生应支付运营管理机构的管理费(?:共计)?([\d\.,]+)元',s)[0]
+    mf3_fixed = re.findall('运营管理机构.*固定管理费为?([\d\W]+)元',s)[0]
+    if re.findall('运营管理机构.*浮动管理费为?([\d\W]+)元',s):
+        mf3_variable=re.findall('运营管理机构.*浮动管理费为?([\d\W]+)元',s)[0]
+        mf3_sum=float(mf3_fixed.replace(',',''))+float(mf3_variable.replace(',',''))
+    elif re.search('报告期内未发生应支付运营管理机构的浮动管理费',s):
+        mf3_variable=0
+        mf3_sum=float(mf3_fixed.replace(',',''))+mf3_variable
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -147,7 +162,6 @@ def process_508000(s):  # 华安
         mf3_variable=re.findall('外部管理机构.*计提的浮动管理费为([\d\W]+)元',s)[0]
     except:
         mf3_variable=''
-    cf2 = mf3_sum = ''
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -160,25 +174,50 @@ def process_508008(s):   # 国金
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
+def process_508028(s):
+    mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
+    a=re.findall('计提的基金管理人的固定管理费1为([\d\W]+)元',s)[0]
+    b=re.findall('计提的基金管理人的固定管理费2为([\d\W]+)元',s)[0]
+    mf1=float(a.replace(',',''))+float(b.replace(',',''))
+    mf2=get_mf2(s)
+    cf1=get_cf1(s)
+    values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
+    return values
+
 def process_508088(s):   # 508021  都是国泰君安
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
     mf1=re.findall('基金管理人.*计提的?管理费为?([\d\W]+)元',s)[0]
     cf1=re.findall('托管人.*计提的?托管费为?([\d\W]+)元',s)[0]
-    mf3_fixed=re.findall('外部管理机构.*计提运营管理费([\d\W]+)元',s)[0]
-    mf2=cf2 = mf3_variable = mf3_sum = ''
+    mf3_sum=re.findall('外部管理机构.*计提.*?运营管理费([\d\W]+)元，',s)[0]
+    values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
+    return values
+
+def process_508096(s):
+    mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
+    if re.findall('固定管理费包括基金管理人和资产支持证券管理人的管理费',s):
+        c=re.findall('本报告期计提固定管理费([\d\W]+)元',s)[0]
+        mf2=re.findall('其中资产支持证券管理人的管理费([\d\W]+)元',s)[0]
+        mf1=float(c.replace(',',''))-float(mf2.replace(',',''))
+
+    cf1=re.findall('基金托管人.*?本报告期计提托管费为?([\d\W]+)元',s)[0]
+    a= re.findall('计提外部管理机构运营管理成本及运营管理服务费([\d\W]+)元',s)[0]
+    b= re.findall('计提外部管理机构运营管理成本及运营管理服务费([\d\W]+)元',s)[1]
+    mf3_sum=float(a.replace(',',''))+float(b.replace(',',''))
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
 def process_508001(s):   # 浙商
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
     a=re.findall('基金管理人的固定管理费.*计提固定管理费([\d\W]+)元',s)[0]
-    b=re.findall('基金管理人的浮动管理费为([\d\W]+)元',s)[0]
+    b=re.findall('基金管理人的浮动管理费为?([\d\W]+)元',s)[0]
     mf1=float(a.replace(',',''))+float(b.replace(',',''))
     cf1=re.findall('基金托管人的托管费.*计提托管费([\d\W]+)元',s)[0]
-    mf3_fixed=re.findall('应支付给运营服务机构的服务报酬为([\d\W]+)元',s)[0]
+    try:
+        mf3_sum=re.findall('应支付给运营服务机构的服务报酬为([\d\W]+)元',s)[0]
+    except:
+        pass
     if re.search('本基金无资产支持证券管理人管理费及资产支持证券托管人托管费',s):
         mf2=cf2=0
-    mf3_variable = mf3_sum = ''
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -190,8 +229,10 @@ def process_508006(s):
     a=re.findall('基础服务费\s?A\s?为([\d\W]+)元',s)[0]
     b=re.findall('基础服务费\s?B\s?为([\d\W]+)元',s)[0]
     mf3_fixed=float(a.replace(',','').replace('，',''))+float(b.replace(',',''))
-    mf3_variable=re.search('浮动(管理|服务)费([\d\W]+)元。$',s).group(2)
-    mf2=mf3_sum = ''
+    try:
+        mf3_variable=re.search('浮动(管理|服务)费([\d\W]+)元。$',s).group(2)  #这一项年报有，中期没有
+    except:
+        pass
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -216,7 +257,9 @@ def get_data(code,content):
         '508021': process_508088, #508021和508088都是国泰君安
         '508088': process_508088,
         '508001': process_508001,
-        '508006': process_508006
+        '508006': process_508006,
+        '508028': process_508028,
+        '508096': process_508096,
     }
     if code in code_mapping.keys():
         result = code_mapping[code](content)
@@ -226,6 +269,7 @@ def get_data(code,content):
         mf2=get_mf2(content)
         cf1=get_cf1(content)
         cf2=get_cf2(content)
+        mf3_sum=get_mf3(content)
         result=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return result
 

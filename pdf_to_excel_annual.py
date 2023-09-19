@@ -51,7 +51,7 @@ def get_tables(file):
             b = lines.index(line)
             break
     content = ''.join(lines[a+1:b+1])
-    content = content.strip('§4 基础设施项目运营情况')
+    content = content.replace('§4 基础设施项目运营情况', '')
 
     # 提取基金份额变动情况附近页，即13.4-§14
     tables_2= []
@@ -340,7 +340,7 @@ def main(root_dir, update):
                 run(base_dir)
                 print(name, '保存成功。')
 
-if __name__ == '__main__':
-    main('Areport_PDF','part')
+# if __name__ == '__main__':
+#     main('Areport_PDF','part')
     # get_data(r'F:\REITs\to_intern_0903\Fin_rp\Areport_PDF\2022A\A_report\508056_2022A.pdf')
 

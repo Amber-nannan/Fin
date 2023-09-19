@@ -3,12 +3,11 @@ from openpyxl import load_workbook
 from pathlib import Path
 import pdfplumber
 import re
-
-# 根据目录缩小extract页码范围: §2--5.1、13.4-§14
+import mgmt_fee_annual
 import pdfplumber
 
 
-
+# 根据目录缩小extract页码范围: §2--5.1、13.4-§14
 def get_tables(file):
     pdf = pdfplumber.open(str(file))
     toc_pages = pdf.pages[2:7]  # 这几页是目录页
@@ -31,9 +30,12 @@ def get_tables(file):
     tables = []
     content=''
     for page in pdf.pages[start_page-1:end_page]:  # 第一页是page[0]所以start_page-1
-        table = page.extract_tables()
-        text = page.extract_text()
+        content_area = (45, 60, 545, 780)
+        cropped_page = page.crop(content_area) # 裁剪页面，只提取指定区域的文本（防止管理费文本里出现页眉和页码）
+        text = cropped_page.extract_text()   
         content += text
+
+        table = page.extract_tables()
         if not table:
             continue
         for row in table:
@@ -48,9 +50,10 @@ def get_tables(file):
         if '4' in line and '基础设施项目运营情况' in line:
             b = lines.index(line)
             break
-    content = ''.join(lines[a+1:b])
+    content = ''.join(lines[a+1:b+1])
+    content = content.replace('§4 基础设施项目运营情况', '')
 
-    # 提取基金份额变动情况附近页，即13.4-§14
+    # 提取基金份额变动情况附近页，即9.1之后
     tables_2= []
     if page_:
         for page in pdf.pages[page_-1:]:
@@ -294,22 +297,31 @@ def get_data(file):
     K = sum(K_)
     # # 去掉逗号与换行
     values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB, AC, AD ,AE]
+    values2 = mgmt_fee_annual.get_data(A[0:6],mgmt_fee_text)
     num_values = switch_data_format(values)
-    return num_values
+    mgmt_values = switch_data_format(values2)
+    mgmt_values.insert(0, A)
+    return num_values,mgmt_values
 
 def run(base_dir):
     wb = load_workbook('modelsA.xlsx')
+    wb2 = load_workbook('modelsMgmt.xlsx')
     sheet = wb.active
+    sheet2 = wb2.active
     row = 3
     for file in Path(base_dir).rglob('*.pdf'): 
-        lst = get_data(file)
+        lst,lst2 = get_data(file)
         # print(lst)
         # print(file,'提取完毕')
         for n, r in enumerate(lst):
             sheet.cell(row=row, column=n + 1).value = r
+        for n, r in enumerate(lst2):
+            sheet2.cell(row=row, column=n + 1).value = r
         row += 1
     name = base_dir.joinpath(base_dir.stem + '.xlsx')   #保存在文件很少的那一层文件夹
+    name2 = base_dir.joinpath(base_dir.stem + 'Mgmt.xlsx')
     wb.save(name)
+    wb2.save(name2)
 
 # 该函数检查/更新所有年度的提取
 def main(root_dir, update):
@@ -327,7 +339,7 @@ def main(root_dir, update):
                 run(base_dir)
                 print(name, '保存成功。')
 
-# if __name__ == '__main__':
-#     main('Areport_PDF',1)
+if __name__ == '__main__':
+    main('Midreport_PDF','part')
     # get_data(r'F:\REITs\to_intern_0903\Fin_rp\Areport_PDF\2022A\A_report\508056_2022A.pdf')
 
