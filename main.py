@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 –*-
 
-import pdf_to_txt
 import pdf_to_excel_quarterly
 import pdf_to_excel_annual
 import pdf_to_excel_mid
@@ -15,7 +14,7 @@ import os
 import re
 
 # 注意和copy_xlsx.py中的main函数区分
-# 把root_dir中不含model的.xlsx文件copy到save_dir中
+# 把root_dir中不含Mgmt的.xlsx文件copy到save_dir中
 def copy_xlsx(root_dir, save_dir):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -23,7 +22,7 @@ def copy_xlsx(root_dir, save_dir):
 
     for file in Path(root_dir).rglob('*.xlsx'):
         savepath = Path(save_dir).joinpath(file.name)
-        if not bool(re.search('models', file.name)):
+        if not bool(re.search('Mgmt', file.name)):
             # if savepath.exists():
             #     continue
             shutil.copy(file, savepath)
@@ -62,7 +61,7 @@ def downloada_and_read_creits_pdf_data(download,update):
     print('PDF下载及提取至文件夹已经全部完成')
     print('=' * 50)
 
-downloada_and_read_creits_pdf_data(False,1)
+downloada_and_read_creits_pdf_data(False,'part')
 
 
 
