@@ -3,7 +3,7 @@ from openpyxl import load_workbook
 from pathlib import Path
 import pdfplumber
 import re
-import mgmt_fee_annual
+import get_mgmt_fee
 
 
 # 根据目录缩小extract页码范围: §2--5.1、13.4-§14
@@ -86,6 +86,10 @@ def switch_data_format(values):
             try:
                 if v.endswith('%'):
                     f = float(v[:-1]) / 100
+                elif v.endswith('万'):
+                    f = float(v[:-1]) * 10000
+                    if f > 1e10:   # 如果大于100亿认为数据有错误
+                        f /= 1e4
                 else:
                     f = float(v.replace(',', '').replace('\n', ''))
                 float_values.append(f)
@@ -298,7 +302,7 @@ def get_data(file):
     K = sum(K_)
     # # 去掉逗号与换行
     values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB, AC, AD ,AE]
-    values2 = mgmt_fee_annual.get_data(A[0:6],mgmt_fee_text)
+    values2 = get_mgmt_fee.get_data(A[0:6],mgmt_fee_text)
     num_values = switch_data_format(values)
     mgmt_values = switch_data_format(values2)
     mgmt_values.insert(0, A)
@@ -330,15 +334,19 @@ def main(root_dir, update):
     for base_dir in Path(root_dir).glob('*'):
         if base_dir.is_dir():
             name = base_dir.joinpath(base_dir.stem + '.xlsx')
+            name2 = base_dir.joinpath(base_dir.stem + 'Mgmt.xlsx')
             if update == 'part':
                 if name.exists():
                     print(name, '已存在')
+                    print(name2, '已存在')
                 else:
                     run(base_dir)
                     print(name, '保存成功。')
+                    print(name2, '保存成功。')
             else:
                 run(base_dir)
                 print(name, '保存成功。')
+                print(name2, '保存成功。')
 
 # if __name__ == '__main__':
 #     main('Areport_PDF','part')

@@ -3,6 +3,7 @@ from openpyxl import load_workbook
 from pathlib import Path
 import pdfplumber
 import re
+import get_mgmt_fee
 
 # 根据表格模板提取pdf数据，保存到每个文件夹下
 def get_tables(file):
@@ -28,14 +29,14 @@ def get_tables(file):
     for line in lines:
         if '6.2' in line and '基金费用' in line and '收取情况' in line:
             a = lines.index(line)
-        if '6.3' in line and '管理人' in line:
+        if '6.3' in line and '管理人对报告期内本基金运作' in line:
             b = lines.index(line)
             break
     if b > a:
         content = ''.join(lines[a+1:b+1])
-        content = content.replace('§4 基础设施项目运营情况', '')
+        content = content.replace('6.3 管理人对报告期内本基金运作遵规守信情况的说明', '')
 
-    return tables_new
+    return tables_new,content
 
 def get_code_name(file: Path):
     if isinstance(file, str):
@@ -56,6 +57,10 @@ def switch_data_format(values):
             try:
                 if v.endswith('%'):
                     f = float(v[:-1]) / 100
+                elif v.endswith('万'):
+                    f = float(v[:-1]) * 10000
+                    if f > 1e10:   # 如果大于100亿认为数据有错误
+                        f /= 1e4
                 else:
                     f = float(v.replace(',', '').replace('\n', ''))
                 float_values.append(f)
@@ -72,7 +77,7 @@ def check_string_contains(my_string, substrings_to_check):
     return bool(re.search(pattern, my_string))
 
 def get_data(file):
-    tables = get_tables(file)
+    tables,mgmt_fee_text = get_tables(file)
     A = B = C = D = E = F = G = H = I = J = K = L = M = N = O = P = Q = R = S = T = U = V = W = X = Y = Z =''
     A = get_code_name(file)
     G_, H_ = [], []
@@ -245,22 +250,31 @@ def get_data(file):
     H = sum(H_)
     # 去掉逗号与换行
     values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X]
+    values2 = get_mgmt_fee.get_data(A[0:6],mgmt_fee_text)
     num_values = switch_data_format(values)
-    return num_values
+    mgmt_values = switch_data_format(values2)
+    mgmt_values.insert(0, A)
+    return num_values,mgmt_values
 
 def run(base_dir):
     wb = load_workbook('modelsQ.xlsx')
+    wb2 = load_workbook('modelsMgmt.xlsx')
     sheet = wb.active
+    sheet2 = wb2.active
     row = 3
     for file in Path(base_dir).rglob('*.pdf'):  # 做了一下尝试修改!!!原来为base_dir
-        lst = get_data(file)
+        lst,lst2 = get_data(file)
         # print(lst)
         # print(file,'提取完毕')
         for n, r in enumerate(lst):
             sheet.cell(row=row, column=n + 1).value = r
+        for n, r in enumerate(lst2):
+            sheet2.cell(row=row, column=n + 1).value = r
         row += 1
-    name = base_dir.joinpath(base_dir.stem + '.xlsx')   #存在文件很少的那一层文件夹
+    name = base_dir.joinpath(base_dir.stem + '.xlsx')   
+    name2 = base_dir.joinpath(base_dir.stem + 'Mgmt.xlsx')
     wb.save(name)
+    wb2.save(name2)
 
 # 该函数检查/更新所有季度的提取
 def main(root_dir, update):
@@ -268,16 +282,21 @@ def main(root_dir, update):
     for base_dir in Path(root_dir).glob('*'):
         if base_dir.is_dir():
             name = base_dir.joinpath(base_dir.stem + '.xlsx')
+            name2 = base_dir.joinpath(base_dir.stem + 'Mgmt.xlsx')
             if update == 'part':
                 if name.exists():
                     print(name, '已存在')
+                    print(name2, '已存在')
                 else:
                     run(base_dir)
                     print(name, '保存成功。')
+                    print(name2, '保存成功。')
             else:
                 run(base_dir)
                 print(name, '保存成功。')
+                print(name2, '保存成功。')
 
 # if __name__ == '__main__':
+#     main('Qreport_PDF','part')
 #     main('Areport_PDF','')  
 
