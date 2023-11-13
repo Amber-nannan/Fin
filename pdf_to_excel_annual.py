@@ -4,6 +4,7 @@ from pathlib import Path
 import pdfplumber
 import re
 import get_mgmt_fee
+import os
 
 
 # 根据目录缩小extract页码范围: §2--5.1、13.4-§14
@@ -20,6 +21,8 @@ def get_tables(file):
             start_page=int(re.findall('\.{2,}\s?(\d+)',text)[0])
         if '5.2' in text  and '债券投资组合' in text:
             end_page=int(re.findall('(\d{2})',text)[0])
+        if ('12' in text) and ('评估报告' in text):
+            page_0=int(re.findall('\.{2,}\s?(\d+)',text)[0])
         if ('13.1' in text) or ('户数及持有人结构' in text):    # 这两个基本在同一页，可能都有/没有，或可能有一个
             try:
                 page_=int(re.findall('\.{2,}\s?(\d+)',text)[0])
@@ -64,8 +67,26 @@ def get_tables(file):
                 tables_2 += row
     tables_2_new = [
         [str(cell).replace('\n', '') for cell in row] for row in tables_2]
+    
+    # 提取关联方报酬，即§12评估报告之前，倒序寻找
+    tables_3=[]
+    if page_0:
+        for page in pdf.pages[page_0:0:-1]:
+            temp_text=page.extract_text()
+            if '关联方报酬' in temp_text:
+                target_page=page.page_number
+                break
+        for page in pdf.pages[target_page-1:target_page+5]:
+            table=page.extract_tables()
+            if not table:
+                continue
+            for row in table:
+                tables_3 += row
+    tables_3_new = [
+        [str(cell).replace('\n', '') for cell in row] for row in tables_3]
+    
     pdf.close()
-    return tables_new, content,tables_2_new
+    return tables_new, content,tables_2_new,tables_3_new
 
 def get_code_name(file: Path):
     if isinstance(file, str):
@@ -87,7 +108,7 @@ def switch_data_format(values):
                 if v.endswith('%'):
                     f = float(v[:-1]) / 100
                 elif v.endswith('万'):
-                    f = float(v[:-1]) * 10000
+                    f = float(v[:-1].replace(',','')) * 10000
                     if f > 1e10:   # 如果大于100亿认为数据有错误
                         f /= 1e4
                 else:
@@ -107,9 +128,9 @@ def check_string_contains(my_string, substrings_to_check):
 
 
 def get_data(file):
-    tables,mgmt_fee_text,tables_2 = get_tables(file)
+    tables,mgmt_fee_text,tables_2,tables_3 = get_tables(file)
     A = B = C = D = E = F = G = H = I = J = K = L = M = N = O = P =\
-    Q = R = S = T = U = V = W = X = Y = Z = AA = AB = AC = AD = AE = ''
+    Q = R = S = T = U = V = W = X = Y = Z = AA = AB = AC = AD = AE =''
     A = get_code_name(file) 
     J_, K_ = [], []
     for n, row in enumerate(tables):
@@ -270,28 +291,28 @@ def get_data(file):
                 AC = row[-1]
                 if check_string_contains(rr, ['份']):
                     AC = AC.replace('份', '')
-        if tables_2:
-            for n, row in enumerate(tables_2):
-                if '机构投资者' in row and '个人投资者' in row:
-                    # break
-                    original_list = tables_2[n+1:n+10]
-                    for row2 in original_list:
-                        if '.' in str(row2) and not re.search('[\u4e00-\u9fff]', str(row2)):
-                            fil = [item for item in row2 if ',' in item or '.' in item]
-                            Y,Z,AA,AB = fil[0],fil[1],fil[2],fil[4]
-                
-                if '所有从业人员持有本基金' in str(row) and '基金管理' in str(row):
-                    break
-                    fil = [item for item in row if '.' in item]
-                    AD = fil[0]
-                    AE = fil[1]
-                # if '基金合同生效日' in row[0] and '基金份额总额' in row[0]:
-                #     AA=row[1]
-                # if '期初基金份额总额' in row[0]:
-                #     AB=row[1]
-                if '期末基金份额总额' in row[0]:
-                    AC=row[1]
-
+    if tables_2:
+        for n, row in enumerate(tables_2):
+            if '机构投资者' in row and '个人投资者' in row:
+                # break
+                original_list = tables_2[n+1:n+10]
+                for row2 in original_list:
+                    if '.' in str(row2) and not re.search('[\u4e00-\u9fff]', str(row2)):
+                        fil = [item for item in row2 if ',' in item or '.' in item]
+                        Y,Z,AA,AB = fil[0],fil[1],fil[2],fil[4]
+            
+            if '所有从业人员持有本基金' in str(row) and '基金管理' in str(row):
+                break
+                fil = [item for item in row if '.' in item]
+                AD = fil[0]
+                AE = fil[1]
+            # if '基金合同生效日' in row[0] and '基金份额总额' in row[0]:
+            #     AA=row[1]
+            # if '期初基金份额总额' in row[0]:
+            #     AB=row[1]
+            if '期末基金份额总额' in row[0]:
+                AC=row[1]
+    
         # for rr in row:
         #     check_list1 = ['本基金份额占基金总份额比例']
         #     check_list2 = ['%']
@@ -302,11 +323,12 @@ def get_data(file):
     K = sum(K_)
     # # 去掉逗号与换行
     values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB, AC, AD ,AE]
-    values2 = get_mgmt_fee.get_data(A[0:6],mgmt_fee_text)
+    values2 = get_mgmt_fee.get_data(A[0:6],mgmt_fee_text,tables_3)
     num_values = switch_data_format(values)
     mgmt_values = switch_data_format(values2)
     mgmt_values.insert(0, A)
     return num_values,mgmt_values
+
 
 def run(base_dir):
     wb = load_workbook('modelsA.xlsx')
@@ -331,6 +353,9 @@ def run(base_dir):
 # 该函数检查/更新所有年度的提取
 def main(root_dir, update):
     # 这个root_dir='Areport_PDF'
+    # 为了避免放到整个系统中调用冲突，改成绝对路径
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.join(current_directory, root_dir)
     for base_dir in Path(root_dir).glob('*'):
         if base_dir.is_dir():
             name = base_dir.joinpath(base_dir.stem + '.xlsx')
@@ -350,5 +375,5 @@ def main(root_dir, update):
 
 # if __name__ == '__main__':
 #     main('Areport_PDF','part')
-    # get_data(r'F:\REITs\to_intern_0903\Fin_rp\Areport_PDF\2022A\A_report\508056_2022A.pdf')
+#     get_data(r'F:\REITs\to_intern_0903\Fin_rp\Areport_PDF\2022A\A_report\180101_2022A.pdf')
 

@@ -4,6 +4,7 @@ from pathlib import Path
 import pdfplumber
 import re
 import get_mgmt_fee
+import os
 
 # 根据表格模板提取pdf数据，保存到每个文件夹下
 def get_tables(file):
@@ -58,7 +59,7 @@ def switch_data_format(values):
                 if v.endswith('%'):
                     f = float(v[:-1]) / 100
                 elif v.endswith('万'):
-                    f = float(v[:-1]) * 10000
+                    f = float(v[:-1].replace(',','')) * 10000
                     if f > 1e10:   # 如果大于100亿认为数据有错误
                         f /= 1e4
                 else:
@@ -250,7 +251,7 @@ def get_data(file):
     H = sum(H_)
     # 去掉逗号与换行
     values = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X]
-    values2 = get_mgmt_fee.get_data(A[0:6],mgmt_fee_text)
+    values2 = get_mgmt_fee.get_data(A[0:6],mgmt_fee_text,[])  #季报没有关联方报酬的表，传一个空列表
     num_values = switch_data_format(values)
     mgmt_values = switch_data_format(values2)
     mgmt_values.insert(0, A)
@@ -279,6 +280,9 @@ def run(base_dir):
 # 该函数检查/更新所有季度的提取
 def main(root_dir, update):
     # 这个root_dir='Qreport_PDF'
+    # 为了避免放到整个系统中调用冲突，改成绝对路径
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.join(current_directory, root_dir)
     for base_dir in Path(root_dir).glob('*'):
         if base_dir.is_dir():
             name = base_dir.joinpath(base_dir.stem + '.xlsx')

@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 import pandas as pd
-
+from pdf_to_excel_annual import switch_data_format
 # %% 管理费
 # -*- coding: UTF-8 –*-
 import re
@@ -82,19 +82,22 @@ def get_mf3(s):
 
 def process_180801(s):
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
+    if re.findall('资产支持证券管理人管理费计算方法如下.*?(?!累计)计提([\d\W]+)元', s):
+        mf2=re.findall('资产支持证券管理人管理费计算方法如下.*?(?!累计)计提([\d\W]+)元', s)[0]
+    if re.findall('计提托管费([\d\W]+)元',s):
+        cf1=re.findall('计提托管费([\d\W]+)元',s)[0]
+    if re.findall('外部管理机构管理费.*管理费([\d\W]+)元，',s):
+        mf3_sum=re.findall('外部管理机构管理费.*管理费([\d\W]+)元，',s)[0]  # 只有年报和Q4有
+        mf3_sum=float(mf3_sum.replace(',',''))
+    else:
+        mf3_sum=0
     if re.findall('与净值相关的固定管理费计提([\d\W]+)元',s):
         a=re.findall('与净值相关的固定管理费计提([\d\W]+)元',s)[0]
         b=re.findall('与年度.*相关的固定管理费计提([\d\W]+)元',s)[0]
         c=re.findall('计提全年浮动管理费([\d\W]+)元',s)[0]
-        mf1=float(a.replace(',',''))+float(b.replace(',',''))+float(c.replace(',',''))
-    if re.findall('资产支持证券管理人.*?(?!累计)计提([\d\W]+)元', s):
-        mf2=re.findall('资产支持证券管理人.*?(?!累计)计提([\d\W]+)元', s)[0]
-    if re.findall('计提托管费([\d\W]+)元',s):
-        cf1=re.findall('计提托管费([\d\W]+)元',s)[0]
-    if re.findall('外部管理机构管理费.*管理费([\d\W]+)元',s):
-        mf3_sum=re.findall('外部管理机构管理费.*管理费([\d\W]+)元',s)[0]
-    elif re.findall('计提对外部运营管理机构的运营管理成本为?([\d\W]+)元',s):
-        mf3_sum=re.findall('计提对外部运营管理机构的运营管理成本为?([\d\W]+)元',s)[0]
+        mf1=float(a.replace(',','')) + float(b.replace(',','')) + \
+            float(c.replace(',','')) - float(mf2.replace(',','')) - mf3_sum
+    
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -128,11 +131,11 @@ def process_180202(s):
     mf2=get_mf2(s)
     cf1=get_cf1(s)
     cf2=get_cf2(s)
-    mf3_sum=get_mf3(s)
-    if re.findall('(?<!收取的)浮动管理费([\d\W]+)元',s):    #前面不出现'收取的'三个字才匹配成功
-        mf3_variable=re.findall('(?<!收取的)浮动管理费([\d\W]+)元',s)[0]  #根据规则表，浮动全都是运营机构的
-    if re.findall('(?<!收取的)净资产管理费([\d\W]+)元',s): 
-        mf3_fixed=re.findall('(?<!收取的)净资产管理费([\d\W]+)元',s)[0]
+    mf3_sum=get_mf3(s)   
+    if mf3_sum =='' and re.findall('运营管理机构.*?浮动管理费([\d\W]+)元',s):
+        mf3_variable=re.findall('运营管理机构.*?浮动管理费([\d\W]+)元',s)[0] 
+    if mf3_sum =='' and re.findall('运营管理机构.*?净资产管理费([\d\W]+)元',s): 
+        mf3_fixed=re.findall('运营管理机构.*?净资产管理费([\d\W]+)元',s)[0]
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -161,6 +164,7 @@ def process_180301(s):
 
 def process_180401(s):
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
+    #基金管理人与资产支持专项计划管理人计提管理费合计100元
     if re.findall('基金管理人与.*计划管理人计提管理费合计([\d\W]+)元',s):
         mf12=re.findall('基金管理人与.*计划管理人计提管理费合计([\d\W]+)元',s)[0]
     elif re.findall('本报告期内计提管理人报酬([\d\W]+)元',s):
@@ -222,8 +226,8 @@ def process_508008(s):   # 国金
     mf2=get_mf2(s)
     if mf2=='' and re.findall('计划管理人固定管理费为?([\d\W]+)元',s):
         mf2=re.findall('计划管理人固定管理费为?([\d\W]+)元',s)[0]
-    if re.findall('计提基金及.*计划托管人托管费合计([\d\W]+)元',s):
-        cf12=re.findall('计提基金及.*计划托管人托管费合计([\d\W]+)元',s)[0]  #年报和中期这样
+    if re.findall('计提基金及资产支持计划托管人托管费合计([\d\W]+)元',s):
+        cf12=re.findall('计提基金及资产支持计划托管人托管费合计([\d\W]+)元',s)[0] #年报和中期这样
     else:
         cf1=get_cf1(s)   #季报这样
     temp=re.findall('外部管理机构.*（其中\d{4}年度计提浮动管理费',s)
@@ -237,8 +241,11 @@ def process_508009(s):
     mf1=get_mf1(s)
     mf2=get_mf2(s)
     cf1=get_cf1(s)
+    #  4,043,328.89
     if re.findall('外部管理机构的固定管理费用，计提金额([\d\W]+)元',s):
         mf3_fixed=re.findall('外部管理机构的固定管理费用，计提金额([\d\W]+)元',s)[0]
+    elif re.findall('外部管理机构的管理费包括固定管理费用和浮动管理费用，合计计提金额([\d\W]+)元',s):
+        mf3_sum=re.findall('外部管理机构的管理费包括固定管理费用和浮动管理费用，合计计提金额([\d\W]+)元',s)[0]
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -304,16 +311,19 @@ def process_508096(s):
 
 def process_508001(s):   # 浙商
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
+    if re.findall('基金托管人的托管费.*计提托管费([\d\W]+)元',s):
+        cf1=re.findall('基金托管人的托管费.*计提托管费([\d\W]+)元',s)[0]
+    if re.findall('基金管理人应支付给运营服务机构的服务报酬为([\d\W]+)元',s):   # 这一项只有年报有，中期和Q1-4都没有
+        mf3_sum=re.findall('基金管理人应支付给运营服务机构的服务报酬为([\d\W]+)元',s)[0]
+        mf3_sum=float(mf3_sum.replace(',',''))
+    else:
+        mf3_sum=0
+    if re.search('本基金无资产支持证券管理人管理费及资产支持证券托管人托管费',s):
+        mf2=cf2=0
     if re.findall('基金管理人的固定管理费.*计提固定管理费([\d\W]+)元',s):
         a=re.findall('基金管理人的固定管理费.*计提固定管理费([\d\W]+)元',s)[0]
         b=re.findall('基金管理人的浮动管理费为?([\d\W]+)元',s)[0]
-        mf1=float(a.replace(',',''))+float(b.replace(',',''))
-    if re.findall('基金托管人的托管费.*计提托管费([\d\W]+)元',s):
-        cf1=re.findall('基金托管人的托管费.*计提托管费([\d\W]+)元',s)[0]
-    if re.findall('按权责发生制实际发生的运营管理成本为([\d\W]+)元',s):
-        mf3_sum=re.findall('按权责发生制实际发生的运营管理成本为([\d\W]+)元',s)[0]
-    if re.search('本基金无资产支持证券管理人管理费及资产支持证券托管人托管费',s):
-        mf2=cf2=0
+        mf1=float(a.replace(',',''))+float(b.replace(',',''))-mf3_sum
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -322,26 +332,53 @@ def process_508006(s):
     mf1=re.findall('基金管理人费用收取情况.*发生费用金额([\d\W]+)元',s)[0]
     cf1=re.findall('基金层面托管费([\d\W]+)元',s)[0]
     cf2=re.findall('资产支持专项计划层面托管费([\d\W]+)元',s)[0]
-    if re.findall('基础服务费\s?A\s?为([\d\W]+)元',s):
-        a=re.findall('基础服务费\s?A\s?为([\d\W]+)元',s)[0]
-        b=re.findall('基础服务费\s?B\s?为([\d\W]+)元',s)[0]
-        mf3_fixed=float(a.replace(',','').replace('，',''))+float(b.replace(',',''))
     if re.search('基础服务费.*浮动(管理|服务)费([\d\W]+)元',s):
-        mf3_variable=re.search('基础服务费.*浮动(管理|服务)费([\d\W]+)元',s).group(2)  #这一项年报和Q4有，中期没有
-        mf3_sum=mf3_fixed+float(mf3_variable.replace(',',''))
+        mf3_variable=re.search('基础服务费.*浮动(管理|服务)费([\d\W]+)元',s).group(2)  #这一项年报和Q4有，中期等没有
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
-# print(temp)
-# process_180801('180801',temp)
-# print(get_mf1(temp))
-# print(get_mf2(temp))
-# print(get_cf1(temp))
-# print(get_cf2(temp))
-# print(get_mf3(temp))
+# 获取表里的管理费
+def get_data_in_table(tables_3):
+    AF = AG = AH = AI = AJ = ''
+    if tables_3:
+        for n,row in enumerate(tables_3):
+            if '当期发生的基金应支付的管理费' in row:  
+                for r in row:
+                    if ('.' in r) or ('-' in r):
+                        AF = r.replace('-','0')
+                        break
+                for row2 in tables_3[n:n + 10]:
+                    if '固定管理费' in row2[0]:
+                        for r in row2:
+                            if ('.' in r) or ('-' in r):
+                                AG = r.replace('-','0')
+                                break
+                    if '浮动管理费' in row2[0]:
+                        for r in row2:
+                            if ('.' in r) or ('-' in r):
+                                AH = r.replace('-','0')
+                                break
+                    if '支付销售机构的客户维护费' in row2[0]: 
+                        for r in row2:
+                            if ('.' in r) or ('-' in r):
+                                AI = r.replace('-','0')
+                                break
+            if '当期发生的基金应支付的托管费' in row:  
+                for r in row:
+                    if ('.' in r) or ('-' in r):
+                        AJ = r.replace('-','0')
+                        break
+    return [AF,AG,AH,AI,AJ]
+
+def correct_func(code,mgt_fee_data):
+    mgt_fee_data = switch_data_format(mgt_fee_data)
+    if code =='508027':
+        # 结合text和table里数据补算外部机构管理费
+        mgt_fee_data[8] = mgt_fee_data[9]-mgt_fee_data[0]-mgt_fee_data[1]
+    return mgt_fee_data
 
 # %%
-def get_data(code,content):
+def get_data(code,mgmt_fee_text,tables_3):
     code_mapping = {
         '180801': process_180801,
         '180102': process_180102,
@@ -363,19 +400,26 @@ def get_data(code,content):
         '508096': process_508096,
     }
     if code in code_mapping.keys():
-        result = code_mapping[code](content)
+        data_in_text = code_mapping[code](mgmt_fee_text)
     else:
         mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
-        mf1=get_mf1(content)
-        mf2=get_mf2(content)
-        cf1=get_cf1(content)
-        cf2=get_cf2(content)
-        mf3_sum=get_mf3(content)
-        result=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
-    return result
+        mf1=get_mf1(mgmt_fee_text)
+        mf2=get_mf2(mgmt_fee_text)
+        cf1=get_cf1(mgmt_fee_text)
+        cf2=get_cf2(mgmt_fee_text)
+        mf3_sum=get_mf3(mgmt_fee_text)
+        data_in_text = [mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
+    data_in_table = get_data_in_table(tables_3)
+    mgt_fee_data = data_in_text + data_in_table
+    if tables_3:    # 目前这样correct_func针对年报和季报
+        mgt_fee_data = correct_func(code,mgt_fee_data)
+    return mgt_fee_data
 
 # if __name__ == '__main__':
     # root_dir = 'PDF'
     # main(root_dir)
+    # mgmt_fee_text=''''''
+    # mgmt_fee_text=mgmt_fee_text.replace('\n','').replace(' ','')
+    # get_data('180801',mgmt_fee_text,False)
     # main(r'.\Qreport_PDF')
     
