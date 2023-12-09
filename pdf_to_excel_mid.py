@@ -108,8 +108,9 @@ def switch_data_format(values):
                     f = float(v[:-1]) / 100
                 elif v.endswith('万'):
                     f = float(v[:-1].replace(',','')) * 10000
-                    if f > 1e10:   # 如果大于100亿认为数据有错误
-                        f /= 1e4
+                    if f > 2e10:   # 如果大于200亿认为数据有错误
+                        f /= 2e4
+                        print('数字过大，可能存在错误')
                 else:
                     f = float(v.replace(',', '').replace('\n', ''))
                 float_values.append(f)

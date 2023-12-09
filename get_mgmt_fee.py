@@ -106,9 +106,9 @@ def process_180102(s):
     mf1=get_mf1(s)
     mf2=get_mf2(s)
     cf1=get_cf1(s)
-    if re.findall('外部管理机构浮动管理费\s?A\s?([\d\W]+)元',s):
-        a=re.findall('外部管理机构浮动管理费\s?A\s?([\d\W]+)元',s)[0]
-        b=re.findall('浮动管理费\s?B\s?([\d\W]+)元',s)[0]
+    if re.findall('外部管理机构浮动管理费\s?A\s?(?:含税)?([\d\W]+)元',s):
+        a=re.findall('外部管理机构浮动管理费\s?A\s?(?:含税)?([\d\W]+)元',s)[0]
+        b=re.findall('浮动管理费\s?B\s?(?:含税)?([\d\W]+)元',s)[0]
         mf3_variable=float(a.replace(',',''))+float(b.replace(',',''))
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
@@ -316,14 +316,12 @@ def process_508001(s):   # 浙商
     if re.findall('基金管理人应支付给运营服务机构的服务报酬为([\d\W]+)元',s):   # 这一项只有年报有，中期和Q1-4都没有
         mf3_sum=re.findall('基金管理人应支付给运营服务机构的服务报酬为([\d\W]+)元',s)[0]
         mf3_sum=float(mf3_sum.replace(',',''))
-    else:
-        mf3_sum=0
+    elif re.findall('基金管理人的浮动管理费为?([\d\W]+)元',s):
+        mf3_sum=re.findall('基金管理人的浮动管理费为?([\d\W]+)元',s)[0]      # 根据年报中报推断，浮动管理费全部给外部机构
     if re.search('本基金无资产支持证券管理人管理费及资产支持证券托管人托管费',s):
         mf2=cf2=0
     if re.findall('基金管理人的固定管理费.*计提固定管理费([\d\W]+)元',s):
-        a=re.findall('基金管理人的固定管理费.*计提固定管理费([\d\W]+)元',s)[0]
-        b=re.findall('基金管理人的浮动管理费为?([\d\W]+)元',s)[0]
-        mf1=float(a.replace(',',''))+float(b.replace(',',''))-mf3_sum
+        mf1=re.findall('基金管理人的固定管理费.*计提固定管理费([\d\W]+)元',s)[0]
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
@@ -334,6 +332,8 @@ def process_508006(s):
     cf2=re.findall('资产支持专项计划层面托管费([\d\W]+)元',s)[0]
     if re.search('基础服务费.*浮动(管理|服务)费([\d\W]+)元',s):
         mf3_variable=re.search('基础服务费.*浮动(管理|服务)费([\d\W]+)元',s).group(2)  #这一项年报和Q4有，中期等没有
+    else:
+        mf3 = 0
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
