@@ -254,8 +254,11 @@ def process_508028(s):
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
     if re.findall('计提的基金管理人的固定管理费1为([\d\W]+)元',s):
         a=re.findall('计提的基金管理人的固定管理费1为([\d\W]+)元',s)[0]
-        b=re.findall('计提的基金管理人的固定管理费2为([\d\W]+)元',s)[0]
-        mf1=float(a.replace(',',''))+float(b.replace(',',''))
+        if re.findall('计提的基金管理人的固定管理费2为([\d\W]+)元',s):
+            b=re.findall('计提的基金管理人的固定管理费2为([\d\W]+)元',s)[0]
+            mf1=float(a.replace(',',''))+float(b.replace(',',''))
+        else:
+            mf1=a
     mf2=get_mf2(s)
     cf1=get_cf1(s)
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
