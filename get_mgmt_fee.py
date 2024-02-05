@@ -221,6 +221,7 @@ def process_508000(s):  # 华安
 def process_508008(s):   # 国金
     mf1=mf2=mf12=cf1=cf2=cf12=mf3_fixed=mf3_variable=mf3_sum=''
     mf1=get_mf1(s)
+    # 本报告期内计提的?基金管理人固定管理费为 2,406,060.96 元
     if mf1=='' and re.findall('本报告期内计提的?基金管理人固定管理费为?([\d\W]+)元',s):
         mf1=re.findall('本报告期内计提的?基金管理人固定管理费为?([\d\W]+)元',s)[0]  
     mf2=get_mf2(s)
@@ -232,7 +233,7 @@ def process_508008(s):   # 国金
         cf1=get_cf1(s)   #季报这样
     temp=re.findall('外部管理机构.*（其中\d{4}年度计提浮动管理费',s)
     if re.findall('外部管理机构.*计提的?浮动管理费为?([\d\W]+)元',s) and not temp:
-        mf3_variable=re.findall('外部管理机构.*计提浮动管理费([\d\W]+)元',s)[0]
+        mf3_variable=re.findall('外部管理机构.*计提的?浮动管理费为?([\d\W]+)元',s)[0]
     values=[mf1,mf2,mf12,cf1,cf2,cf12,mf3_fixed,mf3_variable,mf3_sum]
     return values
 
